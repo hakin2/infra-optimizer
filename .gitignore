@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Generated scan output (may contain real account IDs / resource data)
+local_report.json
+*_report.json
+!sample_report.json
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+credentials
+.aws/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/

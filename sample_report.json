@@ -1,0 +1,121 @@
+{
+  "account_id": "123456789012",
+  "region": "us-east-1",
+  "analyzed_at": "2026-05-25T17:51:10.917288+00:00",
+  "total_stacks": 8,
+  "total_resources": 29,
+  "monthly_cost": 4250.0,
+  "recommendations": [
+    {
+      "id": "sample-cost-1",
+      "category": "cost",
+      "severity": "high",
+      "title": "Underutilized EC2 instances detected",
+      "description": "3 EC2 instances have average CPU utilization below 5% over the past 30 days.",
+      "current_state": "i-0abc123, i-0def456, i-0ghi789 averaging 2-4% CPU",
+      "recommended_action": "Downsize to t3.small or consider Spot instances for non-critical workloads.",
+      "estimated_impact": "$150/month savings",
+      "affected_resources": [
+        "i-0abc123",
+        "i-0def456",
+        "i-0ghi789"
+      ],
+      "cfn_fix": null,
+      "confidence": 0.85,
+      "effort": "low"
+    },
+    {
+      "id": "sample-cost-2",
+      "category": "cost",
+      "severity": "medium",
+      "title": "Unattached EBS volumes",
+      "description": "2 EBS volumes are not attached to any instance.",
+      "current_state": "vol-0aaa111 (100GB gp3), vol-0bbb222 (50GB gp2) unattached for 45+ days",
+      "recommended_action": "Snapshot and delete unattached volumes, or reattach if needed.",
+      "estimated_impact": "$24/month savings",
+      "affected_resources": [
+        "vol-0aaa111",
+        "vol-0bbb222"
+      ],
+      "cfn_fix": null,
+      "confidence": 0.95,
+      "effort": "low"
+    },
+    {
+      "id": "sample-sec-1",
+      "category": "security",
+      "severity": "critical",
+      "title": "Security group allows SSH from 0.0.0.0/0",
+      "description": "sg-0abc123 allows inbound SSH (port 22) from any IP address.",
+      "current_state": "sg-0abc123 has ingress rule: TCP/22 from 0.0.0.0/0",
+      "recommended_action": "Restrict SSH access to known CIDR ranges or use SSM Session Manager.",
+      "estimated_impact": "Eliminates brute-force attack surface",
+      "affected_resources": [
+        "sg-0abc123"
+      ],
+      "cfn_fix": "SecurityGroupIngress:\n  - IpProtocol: tcp\n    FromPort: 22\n    ToPort: 22\n    CidrIp: 10.0.0.0/8",
+      "confidence": 1.0,
+      "effort": "low"
+    },
+    {
+      "id": "sample-sec-2",
+      "category": "security",
+      "severity": "high",
+      "title": "S3 bucket without encryption",
+      "description": "Bucket data-exports-staging has no default encryption configured.",
+      "current_state": "data-exports-staging has encryption=NONE",
+      "recommended_action": "Enable SSE-S3 or SSE-KMS default encryption.",
+      "estimated_impact": "Security compliance improvement",
+      "affected_resources": [
+        "data-exports-staging"
+      ],
+      "cfn_fix": "BucketEncryption:\n  ServerSideEncryptionConfiguration:\n    - ServerSideEncryptionByDefault:\n        SSEAlgorithm: aws:kms",
+      "confidence": 1.0,
+      "effort": "low"
+    },
+    {
+      "id": "sample-perf-1",
+      "category": "performance",
+      "severity": "medium",
+      "title": "RDS instance without Multi-AZ",
+      "description": "Production database myapp-db is running single-AZ.",
+      "current_state": "myapp-db (db.r5.large) is single-AZ in us-east-1a",
+      "recommended_action": "Enable Multi-AZ for automatic failover and improved availability.",
+      "estimated_impact": "$200/month additional cost for HA",
+      "affected_resources": [
+        "myapp-db"
+      ],
+      "cfn_fix": null,
+      "confidence": 0.7,
+      "effort": "medium"
+    },
+    {
+      "id": "sample-perf-2",
+      "category": "performance",
+      "severity": "low",
+      "title": "Lambda function with excessive memory allocation",
+      "description": "Function process-events is allocated 1024MB but peaks at 180MB.",
+      "current_state": "process-events: 1024MB allocated, 180MB max used",
+      "recommended_action": "Reduce memory to 256MB. Use Lambda Power Tuning to find optimal setting.",
+      "estimated_impact": "$35/month savings",
+      "affected_resources": [
+        "process-events"
+      ],
+      "cfn_fix": null,
+      "confidence": 0.8,
+      "effort": "low"
+    }
+  ],
+  "summary": {
+    "total_recommendations": 6,
+    "critical_count": 1,
+    "high_count": 2,
+    "medium_count": 2,
+    "low_count": 1,
+    "cost_count": 2,
+    "security_count": 2,
+    "performance_count": 2,
+    "total_savings": 209.0,
+    "savings_pct": 4.9
+  }
+}

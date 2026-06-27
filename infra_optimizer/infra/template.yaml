@@ -1,0 +1,165 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Infrastructure Optimization Agent — core resources
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  ContainerImage:
+    Type: String
+    Description: ECR image URI for the analyzer container
+
+Resources:
+  # --- DynamoDB ---
+  ResultsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: infra-optimizer-results
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: job_id
+          AttributeType: S
+        - AttributeName: account_region
+          AttributeType: S
+      KeySchema:
+        - AttributeName: job_id
+          KeyType: HASH
+        - AttributeName: account_region
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # --- ECS ---
+  AnalyzerCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: infra-optimizer
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  AnalyzerTaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: infra-optimizer-analyzer
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: "1024"
+      Memory: "2048"
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt AnalyzerTaskRole.Arn
+      ContainerDefinitions:
+        - Name: analyzer
+          Image: !Ref ContainerImage
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref AnalyzerLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: analyzer
+          Environment:
+            - Name: RESULTS_TABLE
+              Value: !Ref ResultsTable
+
+  AnalyzerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/infra-optimizer-analyzer
+      RetentionInDays: 30
+
+  AnalyzerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for infra-optimizer ECS tasks
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS outbound for AWS API calls
+
+  # --- IAM ---
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  AnalyzerTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: infra-optimizer-task-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InfraOptimizerReadAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Read-only AWS access for analysis
+              - Effect: Allow
+                Action:
+                  - cloudformation:Describe*
+                  - cloudformation:Get*
+                  - cloudformation:List*
+                  - cloudformation:DetectStackDrift
+                  - config:Get*
+                  - config:List*
+                  - config:Describe*
+                  - ce:Get*
+                  - cloudwatch:GetMetricStatistics
+                  - cloudwatch:ListMetrics
+                  - ec2:Describe*
+                  - iam:Get*
+                  - iam:List*
+                  - iam:GenerateServiceLastAccessedDetails
+                  - rds:Describe*
+                  - lambda:List*
+                  - lambda:Get*
+                  - s3:GetBucketEncryption
+                  - s3:GetBucketVersioning
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:ListAllMyBuckets
+                  - pricing:GetProducts
+                Resource: "*"
+              # Cross-account assume role
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: "arn:aws:iam::*:role/InfraOptimizerReadOnly"
+              # Bedrock model invocation
+              - Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/*"
+              # DynamoDB results storage
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource: !GetAtt ResultsTable.Arn
+
+Outputs:
+  ResultsTableName:
+    Value: !Ref ResultsTable
+  ClusterName:
+    Value: !Ref AnalyzerCluster
+  TaskDefinitionArn:
+    Value: !Ref AnalyzerTaskDef

@@ -1,0 +1,25 @@
+{
+  "family": "infra-optimizer-analyzer",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "analyzer",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/infra-optimizer:latest",
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/infra-optimizer-analyzer",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "analyzer"
+        }
+      },
+      "environment": [
+        { "name": "RESULTS_TABLE", "value": "infra-optimizer-results" }
+      ]
+    }
+  ]
+}
